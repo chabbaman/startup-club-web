@@ -1,27 +1,31 @@
 import { SignUp } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { Chip } from "@heroui/react";
 
 export default async function SignUpPage() {
   const { isAuthenticated } = await auth();
   if (isAuthenticated) redirect("/dashboard");
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-sky-100 via-amber-50 to-rose-100 px-4 py-12">
-      <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-sky-300/50 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-rose-300/50 blur-3xl" />
-      <div className="relative z-10 mb-8 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+    <main className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <span className="text-6xl font-black leading-none text-foreground">?</span>
+        <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">
           Join the Startup Club Board
         </h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Only <span className="font-semibold">@dlshs.org</span> and{" "}
-          <span className="font-semibold">@carondeleths.org</span> emails can sign up.
-        </p>
+        <p className="mt-2 text-sm text-muted">Only school emails can sign up.</p>
+        <div className="mt-3 flex gap-2">
+          <Chip color="accent" variant="soft" size="sm">
+            @dlshs.org
+          </Chip>
+          <Chip color="accent" variant="soft" size="sm">
+            @carondeleths.org
+          </Chip>
+        </div>
       </div>
-      <div className="relative z-10">
-        <SignUp />
-      </div>
+
+      <SignUp />
     </main>
   );
 }

@@ -26,6 +26,16 @@ export default defineSchema({
     createdBy: v.string(),
     createdByName: v.string(),
     createdByImage: v.optional(v.string()),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          name: v.string(),
+          type: v.string(),
+          size: v.number(),
+        }),
+      ),
+    ),
   }).index("by_column_order", ["columnId", "order"]),
 
   // Everyone who has opened the dashboard at least once.

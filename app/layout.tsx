@@ -23,13 +23,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} light h-full antialiased`}
+      data-theme="light"
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col bg-background text-foreground">
         <ClerkProvider
           appearance={{
             variables: {
-              colorPrimary: "#f43f5e",
+              colorPrimary: "#e11d48",
               borderRadius: "0.75rem",
             },
           }}

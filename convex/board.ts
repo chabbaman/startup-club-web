@@ -27,11 +27,20 @@ export const get = query({
         .filter((r): r is NonNullable<typeof r> => r !== undefined)
         .map((r) => ({ name: r.name, color: r.color }));
     }
-    return {
-      columns,
-      cards: cards.sort((a, b) => a.order - b.order),
-      badges,
-    };
+    const withFiles = await Promise.all(
+      cards
+        .sort((a, b) => a.order - b.order)
+        .map(async (card) => ({
+          ...card,
+          files: await Promise.all(
+            (card.attachments ?? []).map(async (a) => ({
+              ...a,
+              url: await ctx.storage.getUrl(a.storageId),
+            })),
+          ),
+        })),
+    );
+    return { columns, cards: withFiles, badges };
   },
 });
 
@@ -76,7 +85,10 @@ export const deleteColumn = mutation({
       .query("cards")
       .withIndex("by_column_order", (q) => q.eq("columnId", columnId))
       .collect();
-    for (const card of cards) await ctx.db.delete(card._id);
+    for (const card of cards) {
+      for (const a of card.attachments ?? []) await ctx.storage.delete(a.storageId);
+      await ctx.db.delete(card._id);
+    }
     await ctx.db.delete(columnId);
   },
 });
@@ -120,6 +132,8 @@ export const deleteCard = mutation({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
     await requireMember(ctx);
+    const card = await ctx.db.get(cardId);
+    for (const a of card?.attachments ?? []) await ctx.storage.delete(a.storageId);
     await ctx.db.delete(cardId);
   },
 });
@@ -149,5 +163,47 @@ export const moveCard = mutation({
         await ctx.db.patch(c._id, { order: i });
       }
     }
+  },
+});
+
+/** Step 1 of an upload: the client POSTs the file to this URL and gets a storageId back. */
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireMember(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/** Step 2: link the uploaded file to a card. */
+export const addAttachment = mutation({
+  args: {
+    cardId: v.id("cards"),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    type: v.string(),
+    size: v.number(),
+  },
+  handler: async (ctx, { cardId, ...file }) => {
+    await requireMember(ctx);
+    const card = await ctx.db.get(cardId);
+    if (!card) {
+      await ctx.storage.delete(file.storageId);
+      return;
+    }
+    await ctx.db.patch(cardId, { attachments: [...(card.attachments ?? []), file] });
+  },
+});
+
+export const removeAttachment = mutation({
+  args: { cardId: v.id("cards"), storageId: v.id("_storage") },
+  handler: async (ctx, { cardId, storageId }) => {
+    await requireMember(ctx);
+    const card = await ctx.db.get(cardId);
+    if (!card) return;
+    await ctx.db.patch(cardId, {
+      attachments: (card.attachments ?? []).filter((a) => a.storageId !== storageId),
+    });
+    await ctx.storage.delete(storageId);
   },
 });

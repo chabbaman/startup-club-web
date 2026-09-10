@@ -31,6 +31,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
+Production uses two deployments: the Next.js frontend on Vercel and the Convex
+backend. Pushing to GitHub republishes the frontend, but does not deploy Convex
+functions or schema changes.
+
+Before pushing a release that changes `convex/`, publish the backend first:
+
+```bash
+bun run lint
+bun run build
+bun run deploy:backend
+git push origin main
+```
+
+Confirm the Convex production target is `diligent-robin-100`. Vercel's production
+`NEXT_PUBLIC_CONVEX_URL` must be `https://diligent-robin-100.convex.cloud`.
+After deployment, open Teacher view and verify Roles, Members, and Version history
+load. A missing `history:list` production function causes Teacher view to crash
+even when the frontend build succeeds.
+
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

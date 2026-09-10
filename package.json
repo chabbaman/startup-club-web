@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "deploy:backend": "convex deploy",
     "start": "next start",
     "lint": "eslint"
   },

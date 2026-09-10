@@ -178,6 +178,9 @@ function Column({
   };
 
   const isDropping = dragging !== null && dropTarget !== null;
+  // Deleting a column deletes its cards, so members may only delete columns
+  // where every card is their own. Mirrors convex/access.ts requireColumnDeleter.
+  const canDeleteColumn = isTeacher || cards.every((c) => c.createdBy === myId);
 
   return (
     <motion.div
@@ -237,21 +240,23 @@ function Column({
         <Chip size="sm" variant="soft" className="bg-white/60 text-current">
           {cards.length}
         </Chip>
-        <Tooltip>
-          <Button
-            variant="ghost"
-            size="sm"
-            isIconOnly
-            aria-label="Delete column"
-            onPress={() => {
-              if (cards.length === 0) void deleteColumn({ columnId: column._id });
-              else setConfirmDelete(true);
-            }}
-          >
-            ✕
-          </Button>
-          <Tooltip.Content>Delete column</Tooltip.Content>
-        </Tooltip>
+        {canDeleteColumn && (
+          <Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              isIconOnly
+              aria-label="Delete column"
+              onPress={() => {
+                if (cards.length === 0) void deleteColumn({ columnId: column._id });
+                else setConfirmDelete(true);
+              }}
+            >
+              ✕
+            </Button>
+            <Tooltip.Content>Delete column</Tooltip.Content>
+          </Tooltip>
+        )}
       </Card.Header>
 
       <Card.Content className="flex flex-col gap-2 p-2">

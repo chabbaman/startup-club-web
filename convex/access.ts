@@ -44,8 +44,31 @@ export async function requireCardEditor(
   card: { createdBy: string },
 ) {
   const identity = await requireMember(ctx);
-  if (card.createdBy !== identity.subject && !isTeacherEmail(identity.email)) {
+  if (!canEditCard(identity, card)) {
     throw new Error("Only the person who created this card (or a teacher) can change it");
+  }
+  return identity;
+}
+
+/** Pure ownership check shared by the card and column guards. */
+export function canEditCard(
+  identity: { subject: string; email?: string },
+  card: { createdBy: string },
+): boolean {
+  return card.createdBy === identity.subject || isTeacherEmail(identity.email);
+}
+
+/**
+ * Deleting a column deletes every card in it, so a member may only do that
+ * when every card in the column is their own. Teachers may always.
+ */
+export async function requireColumnDeleter(
+  ctx: QueryCtx | MutationCtx,
+  cards: { createdBy: string }[],
+) {
+  const identity = await requireMember(ctx);
+  if (!isTeacherEmail(identity.email) && cards.some((c) => c.createdBy !== identity.subject)) {
+    throw new Error("This column has cards made by other people; only a teacher can delete it");
   }
   return identity;
 }

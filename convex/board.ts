@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { columnColor } from "./schema";
-import { requireCardEditor, requireMember } from "./access";
+import { requireCardEditor, requireColumnDeleter, requireMember } from "./access";
 import { displayName, logEvent } from "./history";
 
 const DEFAULT_COLUMNS: { title: string; color: "coral" | "amber" | "teal" | "violet" }[] = [
@@ -101,12 +101,12 @@ export const renameColumn = mutation({
 export const deleteColumn = mutation({
   args: { columnId: v.id("columns") },
   handler: async (ctx, { columnId }) => {
-    const identity = await requireMember(ctx);
     const column = await ctx.db.get(columnId);
     const cards = await ctx.db
       .query("cards")
       .withIndex("by_column_order", (q) => q.eq("columnId", columnId))
       .collect();
+    const identity = await requireColumnDeleter(ctx, cards);
     for (const card of cards) {
       for (const a of card.attachments ?? []) await ctx.storage.delete(a.storageId);
       await ctx.db.delete(card._id);
@@ -175,6 +175,7 @@ export const updateCard = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, { cardId, title, description }) => {
+    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) return;
     const identity = await requireCardEditor(ctx, card);
@@ -228,6 +229,7 @@ export const updateCard = mutation({
 export const deleteCard = mutation({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
+    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) return;
     const identity = await requireCardEditor(ctx, card);
@@ -259,6 +261,7 @@ export const deleteCard = mutation({
 export const moveCard = mutation({
   args: { cardId: v.id("cards"), toColumnId: v.id("columns"), toIndex: v.number() },
   handler: async (ctx, { cardId, toColumnId, toIndex }) => {
+    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) return;
     const identity = await requireCardEditor(ctx, card);
@@ -329,6 +332,7 @@ export const addAttachment = mutation({
     size: v.number(),
   },
   handler: async (ctx, { cardId, ...file }) => {
+    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) {
       await ctx.storage.delete(file.storageId);
@@ -350,6 +354,7 @@ export const addAttachment = mutation({
 export const removeAttachment = mutation({
   args: { cardId: v.id("cards"), storageId: v.id("_storage") },
   handler: async (ctx, { cardId, storageId }) => {
+    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) return;
     const identity = await requireCardEditor(ctx, card);

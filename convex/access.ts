@@ -34,3 +34,18 @@ export async function requireTeacher(ctx: QueryCtx | MutationCtx) {
   }
   return identity;
 }
+
+/**
+ * Card ownership: only the member who created the card, or a teacher, may
+ * change it (edit, move, delete, attachments). Everyone else gets an error.
+ */
+export async function requireCardEditor(
+  ctx: QueryCtx | MutationCtx,
+  card: { createdBy: string },
+) {
+  const identity = await requireMember(ctx);
+  if (card.createdBy !== identity.subject && !isTeacherEmail(identity.email)) {
+    throw new Error("Only the person who created this card (or a teacher) can change it");
+  }
+  return identity;
+}

@@ -6,6 +6,7 @@ import { Avatar, Button, Card, Chip, Input, Label, Modal, Spinner, TextField } f
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { COLORS, ColorPicker, RoleBadge, type AccentColor } from "./colors";
+import { HistoryPanel } from "./HistoryPanel";
 
 export function TeacherPanel() {
   const data = useQuery(api.roles.adminView);
@@ -129,6 +130,8 @@ export function TeacherPanel() {
           </ul>
         </Card.Content>
       </Card>
+
+      <HistoryPanel />
     </main>
   );
 }

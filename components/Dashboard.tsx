@@ -36,7 +36,7 @@ export function Dashboard({ isTeacher }: { isTeacher: boolean }) {
         <AuthLoading>{loading}</AuthLoading>
         <Authenticated>
           <RegisterUser />
-          <Board />
+          <Board isTeacher={false} />
         </Authenticated>
       </div>
     );
@@ -71,7 +71,7 @@ export function Dashboard({ isTeacher }: { isTeacher: boolean }) {
       <Authenticated>
         <RegisterUser />
         <Tabs.Panel id="board" className="flex flex-1 flex-col">
-          <Board />
+          <Board isTeacher />
         </Tabs.Panel>
         <Tabs.Panel id="teacher" className="flex flex-1 flex-col">
           <TeacherPanel />

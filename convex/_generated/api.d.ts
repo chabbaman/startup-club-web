@@ -10,6 +10,7 @@
 
 import type * as access from "../access.js";
 import type * as board from "../board.js";
+import type * as history from "../history.js";
 import type * as roles from "../roles.js";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   access: typeof access;
   board: typeof board;
+  history: typeof history;
   roles: typeof roles;
 }>;
 

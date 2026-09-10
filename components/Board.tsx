@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type DragEvent, type FormEvent } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import {
@@ -34,8 +35,10 @@ function Loading() {
   );
 }
 
-export function Board() {
+export function Board({ isTeacher }: { isTeacher: boolean }) {
   const board = useQuery(api.board.get);
+  const { user } = useUser();
+  const myId = user?.id;
   const seed = useMutation(api.board.seedIfEmpty);
   const moveCard = useMutation(api.board.moveCard).withOptimisticUpdate((store, args) => {
     const current = store.getQuery(api.board.get, {});
@@ -83,6 +86,8 @@ export function Board() {
           column={column}
           cards={board.cards.filter((c) => c.columnId === column._id)}
           badges={board.badges}
+          isTeacher={isTeacher}
+          myId={myId}
           dragging={dragging}
           dragOutside={
             dragging !== null &&
@@ -126,6 +131,8 @@ function Column({
   column,
   cards,
   badges,
+  isTeacher,
+  myId,
   dragging,
   dragOutside,
   dropTarget,
@@ -137,6 +144,8 @@ function Column({
   column: Doc<"columns">;
   cards: CardWithFiles[];
   badges: Badges;
+  isTeacher: boolean;
+  myId: string | undefined;
   dragging: Id<"cards"> | null;
   dragOutside: boolean;
   dropTarget: number | null;
@@ -273,6 +282,7 @@ function Column({
               <KanbanCard
                 card={card}
                 badges={badges[card.createdBy] ?? []}
+                canEdit={isTeacher || card.createdBy === myId}
                 isDragging={dragging === card._id}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
@@ -370,12 +380,14 @@ function DropIndicator({ show, color }: { show: boolean; color: string }) {
 function KanbanCard({
   card,
   badges,
+  canEdit,
   isDragging,
   onDragStart,
   onDragEnd,
 }: {
   card: CardWithFiles;
   badges: { name: string; color: AccentColor }[];
+  canEdit: boolean;
   isDragging: boolean;
   onDragStart: (id: Id<"cards">) => void;
   onDragEnd: () => void;
@@ -410,16 +422,23 @@ function KanbanCard({
     <>
       <Card
         variant="secondary"
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = "move";
-          onDragStart(card._id);
-        }}
+        draggable={canEdit}
+        onDragStart={
+          canEdit
+            ? (e) => {
+                e.dataTransfer.effectAllowed = "move";
+                onDragStart(card._id);
+              }
+            : undefined
+        }
         onDragEnd={onDragEnd}
-        onClick={openEditor}
-        className={`cursor-grab gap-2 rounded-2xl p-3 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing ${
-          isDragging ? "scale-[0.97] opacity-40" : ""
-        }`}
+        onClick={canEdit ? openEditor : undefined}
+        title={canEdit ? undefined : `Only ${card.createdByName} (or a teacher) can edit this card`}
+        className={`gap-2 rounded-2xl p-3 transition duration-200 ease-out ${
+          canEdit
+            ? "cursor-grab hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing"
+            : "cursor-default"
+        } ${isDragging ? "scale-[0.97] opacity-40" : ""}`}
       >
         <p className="text-sm font-medium text-foreground">{card.title}</p>
         {card.description && (

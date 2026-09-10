@@ -1,7 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { columnColor } from "./schema";
-import { requireMember } from "./access";
+import { requireCardEditor, requireMember } from "./access";
+import { displayName, logEvent } from "./history";
 
 const DEFAULT_COLUMNS: { title: string; color: "coral" | "amber" | "teal" | "violet" }[] = [
   { title: "Ideas", color: "violet" },
@@ -59,12 +60,20 @@ export const seedIfEmpty = mutation({
 export const addColumn = mutation({
   args: { title: v.string(), color: columnColor },
   handler: async (ctx, { title, color }) => {
-    await requireMember(ctx);
+    const identity = await requireMember(ctx);
     const last = await ctx.db.query("columns").withIndex("by_order").order("desc").first();
-    await ctx.db.insert("columns", {
-      title: title.trim() || "Untitled",
+    const name = title.trim() || "Untitled";
+    const columnId = await ctx.db.insert("columns", {
+      title: name,
       color,
       order: (last?.order ?? -1) + 1,
+    });
+    await logEvent(ctx, identity, {
+      kind: "column_created",
+      summary: `${displayName(identity)} created column "${name}"`,
+      targetKind: "column",
+      after: name,
+      columnId,
     });
   },
 });
@@ -72,15 +81,28 @@ export const addColumn = mutation({
 export const renameColumn = mutation({
   args: { columnId: v.id("columns"), title: v.string() },
   handler: async (ctx, { columnId, title }) => {
-    await requireMember(ctx);
-    await ctx.db.patch(columnId, { title: title.trim() || "Untitled" });
+    const identity = await requireMember(ctx);
+    const column = await ctx.db.get(columnId);
+    const name = title.trim() || "Untitled";
+    if (!column || column.title === name) return;
+    await ctx.db.patch(columnId, { title: name });
+    await logEvent(ctx, identity, {
+      kind: "column_renamed",
+      summary: `${displayName(identity)} renamed column "${column.title}" to "${name}"`,
+      targetKind: "column",
+      field: "column name",
+      before: column.title,
+      after: name,
+      columnId,
+    });
   },
 });
 
 export const deleteColumn = mutation({
   args: { columnId: v.id("columns") },
   handler: async (ctx, { columnId }) => {
-    await requireMember(ctx);
+    const identity = await requireMember(ctx);
+    const column = await ctx.db.get(columnId);
     const cards = await ctx.db
       .query("cards")
       .withIndex("by_column_order", (q) => q.eq("columnId", columnId))
@@ -90,6 +112,29 @@ export const deleteColumn = mutation({
       await ctx.db.delete(card._id);
     }
     await ctx.db.delete(columnId);
+    if (!column) return;
+    const cardList =
+      cards.length === 0
+        ? "it was empty"
+        : `deleting ${cards.length} card${cards.length === 1 ? "" : "s"}: ${cards.map((c) => `"${c.title}"`).join(", ")}`;
+    await logEvent(ctx, identity, {
+      kind: "column_deleted",
+      summary: `${displayName(identity)} deleted column "${column.title}" (${cardList})`,
+      targetKind: "column",
+      before: column.title,
+      columnId,
+      restoreColumn: {
+        title: column.title,
+        color: column.color,
+        cards: cards.map((c) => ({
+          title: c.title,
+          description: c.description,
+          createdBy: c.createdBy,
+          createdByName: c.createdByName,
+          createdByImage: c.createdByImage,
+        })),
+      },
+    });
   },
 });
 
@@ -97,18 +142,28 @@ export const addCard = mutation({
   args: { columnId: v.id("columns"), title: v.string() },
   handler: async (ctx, { columnId, title }) => {
     const identity = await requireMember(ctx);
+    const column = await ctx.db.get(columnId);
     const last = await ctx.db
       .query("cards")
       .withIndex("by_column_order", (q) => q.eq("columnId", columnId))
       .order("desc")
       .first();
-    await ctx.db.insert("cards", {
+    const name = title.trim() || "Untitled";
+    const cardId = await ctx.db.insert("cards", {
       columnId,
-      title: title.trim() || "Untitled",
+      title: name,
       order: (last?.order ?? -1) + 1,
       createdBy: identity.subject,
-      createdByName: identity.name ?? identity.email ?? "Someone",
+      createdByName: displayName(identity),
       createdByImage: identity.pictureUrl,
+    });
+    await logEvent(ctx, identity, {
+      kind: "card_created",
+      summary: `${displayName(identity)} created card "${name}" in "${column?.title ?? "a column"}"`,
+      targetKind: "card",
+      after: name,
+      cardId,
+      columnId,
     });
   },
 });
@@ -120,21 +175,83 @@ export const updateCard = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, { cardId, title, description }) => {
-    await requireMember(ctx);
+    const card = await ctx.db.get(cardId);
+    if (!card) return;
+    const identity = await requireCardEditor(ctx, card);
     const patch: { title?: string; description?: string } = {};
     if (title !== undefined) patch.title = title.trim() || "Untitled";
     if (description !== undefined) patch.description = description;
+    const changedTitle = patch.title !== undefined && patch.title !== card.title;
+    const changedDescription =
+      patch.description !== undefined && patch.description !== (card.description ?? "");
+    if (!changedTitle && !changedDescription) return;
+    // Snapshot the pre-edit state so "restore this version" can revert it.
+    const snapshot = {
+      title: card.title,
+      description: card.description,
+      columnId: card.columnId,
+      order: card.order,
+      createdBy: card.createdBy,
+      createdByName: card.createdByName,
+      createdByImage: card.createdByImage,
+    };
     await ctx.db.patch(cardId, patch);
+    if (changedTitle) {
+      await logEvent(ctx, identity, {
+        kind: "card_updated",
+        summary: `${displayName(identity)} edited the title of card "${patch.title}"`,
+        targetKind: "card",
+        field: "title",
+        before: card.title,
+        after: patch.title,
+        cardId,
+        columnId: card.columnId,
+        restoreCard: snapshot,
+      });
+    }
+    if (changedDescription) {
+      await logEvent(ctx, identity, {
+        kind: "card_updated",
+        summary: `${displayName(identity)} edited the details of card "${patch.title ?? card.title}"`,
+        targetKind: "card",
+        field: "details",
+        before: card.description ?? "",
+        after: patch.description ?? "",
+        cardId,
+        columnId: card.columnId,
+        restoreCard: snapshot,
+      });
+    }
   },
 });
 
 export const deleteCard = mutation({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
-    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
-    for (const a of card?.attachments ?? []) await ctx.storage.delete(a.storageId);
+    if (!card) return;
+    const identity = await requireCardEditor(ctx, card);
+    const column = await ctx.db.get(card.columnId);
+    for (const a of card.attachments ?? []) await ctx.storage.delete(a.storageId);
     await ctx.db.delete(cardId);
+    await logEvent(ctx, identity, {
+      kind: "card_deleted",
+      summary: `${displayName(identity)} deleted card "${card.title}" from "${column?.title ?? "a column"}"`,
+      targetKind: "card",
+      field: "details",
+      before: card.description ?? "",
+      cardId,
+      columnId: card.columnId,
+      restoreCard: {
+        title: card.title,
+        description: card.description,
+        columnId: card.columnId,
+        order: card.order,
+        createdBy: card.createdBy,
+        createdByName: card.createdByName,
+        createdByImage: card.createdByImage,
+      },
+    });
   },
 });
 
@@ -142,9 +259,11 @@ export const deleteCard = mutation({
 export const moveCard = mutation({
   args: { cardId: v.id("cards"), toColumnId: v.id("columns"), toIndex: v.number() },
   handler: async (ctx, { cardId, toColumnId, toIndex }) => {
-    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) return;
+    const identity = await requireCardEditor(ctx, card);
+    const fromColumnId = card.columnId;
+    const fromOrder = card.order;
 
     const siblings = (
       await ctx.db
@@ -163,6 +282,31 @@ export const moveCard = mutation({
         await ctx.db.patch(c._id, { order: i });
       }
     }
+
+    if (fromColumnId === toColumnId && fromOrder === index) return;
+    const fromColumn = await ctx.db.get(fromColumnId);
+    const toColumn = await ctx.db.get(toColumnId);
+    await logEvent(ctx, identity, {
+      kind: "card_moved",
+      summary:
+        fromColumnId === toColumnId
+          ? `${displayName(identity)} reordered card "${card.title}" in "${toColumn?.title ?? "a column"}"`
+          : `${displayName(identity)} moved card "${card.title}" from "${fromColumn?.title ?? "a column"}" to "${toColumn?.title ?? "a column"}"`,
+      targetKind: "card",
+      before: fromColumn?.title,
+      after: toColumn?.title,
+      cardId,
+      columnId: toColumnId,
+      restoreCard: {
+        title: card.title,
+        description: card.description,
+        columnId: fromColumnId,
+        order: fromOrder,
+        createdBy: card.createdBy,
+        createdByName: card.createdByName,
+        createdByImage: card.createdByImage,
+      },
+    });
   },
 });
 
@@ -185,25 +329,42 @@ export const addAttachment = mutation({
     size: v.number(),
   },
   handler: async (ctx, { cardId, ...file }) => {
-    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) {
       await ctx.storage.delete(file.storageId);
       return;
     }
+    const identity = await requireCardEditor(ctx, card);
     await ctx.db.patch(cardId, { attachments: [...(card.attachments ?? []), file] });
+    await logEvent(ctx, identity, {
+      kind: "attachment_added",
+      summary: `${displayName(identity)} attached "${file.name}" to card "${card.title}"`,
+      targetKind: "attachment",
+      after: file.name,
+      cardId,
+      columnId: card.columnId,
+    });
   },
 });
 
 export const removeAttachment = mutation({
   args: { cardId: v.id("cards"), storageId: v.id("_storage") },
   handler: async (ctx, { cardId, storageId }) => {
-    await requireMember(ctx);
     const card = await ctx.db.get(cardId);
     if (!card) return;
+    const identity = await requireCardEditor(ctx, card);
+    const removed = (card.attachments ?? []).find((a) => a.storageId === storageId);
     await ctx.db.patch(cardId, {
       attachments: (card.attachments ?? []).filter((a) => a.storageId !== storageId),
     });
     await ctx.storage.delete(storageId);
+    await logEvent(ctx, identity, {
+      kind: "attachment_removed",
+      summary: `${displayName(identity)} removed "${removed?.name ?? "an attachment"}" from card "${card.title}"`,
+      targetKind: "attachment",
+      before: removed?.name ?? "",
+      cardId,
+      columnId: card.columnId,
+    });
   },
 });

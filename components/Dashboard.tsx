@@ -7,6 +7,7 @@ import { Spinner, Tabs } from "@heroui/react";
 import { api } from "@/convex/_generated/api";
 import { Board } from "./Board";
 import { TeacherPanel } from "./TeacherPanel";
+import { ClubPanel } from "./ClubPanel";
 
 type Tab = "board" | "teacher";
 
@@ -31,7 +32,10 @@ export function Dashboard({ isTeacher }: { isTeacher: boolean }) {
       <div className="flex flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-border bg-surface/80 px-4 py-3 backdrop-blur sm:px-6">
           {brand}
-          <UserButton />
+          <div className="flex items-center gap-3">
+            <ClubPanel />
+            <UserButton />
+          </div>
         </header>
         <AuthLoading>{loading}</AuthLoading>
         <Authenticated>
@@ -63,6 +67,7 @@ export function Dashboard({ isTeacher }: { isTeacher: boolean }) {
               </Tabs.Tab>
             </Tabs.List>
           </Tabs.ListContainer>
+          <ClubPanel />
           <UserButton />
         </div>
       </header>

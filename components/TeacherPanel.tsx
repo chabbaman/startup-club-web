@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { COLORS, ColorPicker, RoleBadge, type AccentColor } from "./colors";
 import { HistoryPanel } from "./HistoryPanel";
+import { PollComposer } from "./Polls";
 
 export function TeacherPanel() {
   const data = useQuery(api.roles.adminView);
@@ -26,6 +27,7 @@ export function TeacherPanel() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6">
+      <PollComposer />
       <Card>
         <Card.Header>
           <Card.Title>Roles</Card.Title>

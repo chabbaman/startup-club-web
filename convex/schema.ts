@@ -12,6 +12,20 @@ export const columnColor = v.union(
 );
 
 export default defineSchema({
+  polls: defineTable({
+    question: v.string(),
+    options: v.array(v.string()),
+    counts: v.array(v.number()),
+    createdBy: v.string(),
+    closed: v.boolean(),
+  }).index("by_closed", ["closed"]),
+
+  pollVotes: defineTable({
+    pollId: v.id("polls"),
+    voterId: v.string(),
+    optionIndex: v.number(),
+  }).index("by_poll_voter", ["pollId", "voterId"]),
+
   columns: defineTable({
     title: v.string(),
     color: columnColor,

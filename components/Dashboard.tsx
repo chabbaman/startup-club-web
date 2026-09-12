@@ -7,6 +7,7 @@ import { Spinner, Tabs } from "@heroui/react";
 import { api } from "@/convex/_generated/api";
 import { Board } from "./Board";
 import { TeacherPanel } from "./TeacherPanel";
+import { LivePolls } from "./Polls";
 
 type Tab = "board" | "teacher";
 
@@ -36,6 +37,7 @@ export function Dashboard({ isTeacher }: { isTeacher: boolean }) {
         <AuthLoading>{loading}</AuthLoading>
         <Authenticated>
           <RegisterUser />
+          <LivePolls isTeacher={false} />
           <Board isTeacher={false} />
         </Authenticated>
       </div>
@@ -70,6 +72,7 @@ export function Dashboard({ isTeacher }: { isTeacher: boolean }) {
       <AuthLoading>{loading}</AuthLoading>
       <Authenticated>
         <RegisterUser />
+        <LivePolls isTeacher />
         <Tabs.Panel id="board" className="flex flex-1 flex-col">
           <Board isTeacher />
         </Tabs.Panel>

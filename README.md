@@ -1,5 +1,22 @@
 Startup Club is a [Next.js](https://nextjs.org) app for managing club activities and board history.
 
+## Live polls
+
+In Teacher view, use **Create a poll** to publish a question with 2–4 choices.
+Open polls appear in a floating card in the bottom-right corner of both dashboard
+views for all signed-in club members, without taking up space above the board.
+Members select a choice and press **Vote** once; votes cannot be changed.
+Convex withholds all results until the caller has voted, including teachers,
+then streams updated counts and percentages as other members vote.
+
+Teachers can use **End poll** to close voting and remove the poll from the screen.
+The floating card is hidden when there are no active polls.
+No member-facing API exposes other voters' identities.
+
+Run `bun run test` for poll access, validation, duplicate-vote, and result-privacy
+checks. Run `bunx convex dev --once` to sync the schema and functions to your
+development deployment before trying polls locally.
+
 ## Getting Started
 
 First, run the development server:

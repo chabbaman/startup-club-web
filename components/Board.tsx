@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useEffect, useState, type DragEvent, type FormEvent } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
@@ -288,8 +288,6 @@ function Column({
                 card={card}
                 badges={badges[card.createdBy] ?? []}
                 canEdit={isTeacher || card.createdBy === myId}
-                isTeacher={isTeacher}
-                myId={myId}
                 isDragging={dragging === card._id}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
@@ -384,24 +382,6 @@ function DropIndicator({ show, color }: { show: boolean; color: string }) {
   );
 }
 
-function ReplyIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <polyline points="9 17 4 12 9 7" />
-      <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-    </svg>
-  );
-}
-
 function initialsOf(name: string) {
   return name
     .split(" ")
@@ -424,8 +404,6 @@ function KanbanCard({
   card,
   badges,
   canEdit,
-  isTeacher,
-  myId,
   isDragging,
   onDragStart,
   onDragEnd,
@@ -433,8 +411,6 @@ function KanbanCard({
   card: CardWithFiles;
   badges: { name: string; color: AccentColor }[];
   canEdit: boolean;
-  isTeacher: boolean;
-  myId: string | undefined;
   isDragging: boolean;
   onDragStart: (id: Id<"cards">) => void;
   onDragEnd: () => void;
@@ -474,7 +450,7 @@ function KanbanCard({
         }
         onDragEnd={onDragEnd}
         onClick={openEditor}
-        title="Open card thread"
+        title="Open card details"
         className={`gap-2 rounded-2xl p-3 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md ${
           canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
         } ${isDragging ? "scale-[0.97] opacity-40" : ""}`}
@@ -502,14 +478,13 @@ function KanbanCard({
       </Card>
 
       <Modal.Backdrop isOpen={open} onOpenChange={setOpen} variant="blur">
-          <Modal.Container size="lg">
+          <Modal.Container size="md">
             <Modal.Dialog>
               <Modal.CloseTrigger />
               <Modal.Header>
-                <Modal.Heading>Card thread</Modal.Heading>
+                <Modal.Heading>Card details</Modal.Heading>
               </Modal.Header>
               <Modal.Body className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto">
-                {/* Seed message: the card itself. Everything below replies to this. */}
                 <div className="flex flex-col gap-2 rounded-2xl border border-border bg-default/30 p-3">
                   <div className="flex items-center gap-2">
                     <Avatar size="sm" className="h-6 w-6 text-[10px]">
@@ -520,9 +495,6 @@ function KanbanCard({
                     {badges.map((b) => (
                       <RoleBadge key={b.name} name={b.name} color={b.color} />
                     ))}
-                    <Chip size="sm" variant="soft">
-                      Seed
-                    </Chip>
                     <span className="ml-auto shrink-0 text-[11px] text-muted">
                       {formatTime(card._creationTime)}
                     </span>
@@ -546,7 +518,7 @@ function KanbanCard({
                         description !== (card.description ?? "")) && (
                         <div className="flex gap-2">
                           <Button size="sm" onPress={() => void saveCardDetails()}>
-                            Save seed
+                            Save
                           </Button>
                           <Button
                             size="sm"
@@ -574,15 +546,6 @@ function KanbanCard({
                   <AttachmentPreview files={card.files} />
                 </div>
 
-                {open && (
-                  <CardThread
-                    cardId={card._id}
-                    seedAuthorName={card.createdByName}
-                    myId={myId}
-                    isTeacher={isTeacher}
-                  />
-                )}
-
                 {canEdit && <AttachmentManager cardId={card._id} files={card.files} />}
               </Modal.Body>
               <Modal.Footer className="justify-between">
@@ -598,7 +561,7 @@ function KanbanCard({
                   </Button>
                 ) : (
                   <span className="text-xs text-muted">
-                    Only {card.createdByName} (or a teacher) can edit this card — anyone can reply.
+                    Only {card.createdByName} (or a teacher) can edit this card.
                   </span>
                 )}
                 <div className="flex gap-2">
@@ -611,249 +574,6 @@ function KanbanCard({
           </Modal.Container>
         </Modal.Backdrop>
     </>
-  );
-}
-
-type ReplyTarget = { _id: Id<"messages">; createdByName: string; text: string };
-
-function QuoteBlock({
-  name,
-  text,
-  deleted,
-}: {
-  name: string;
-  text: string;
-  deleted?: boolean;
-}) {
-  return (
-    <div className="rounded-lg border-l-2 border-accent bg-default/60 px-2 py-1">
-      <p className="text-[11px] font-semibold text-foreground">
-        Replying to {deleted ? "a deleted reply" : name}
-      </p>
-      <p className={`line-clamp-2 text-[11px] ${deleted ? "italic text-muted" : "text-muted"}`}>
-        {deleted ? "This reply was deleted." : text}
-      </p>
-    </div>
-  );
-}
-
-function CardThread({
-  cardId,
-  seedAuthorName,
-  myId,
-  isTeacher,
-}: {
-  cardId: Id<"cards">;
-  seedAuthorName: string;
-  myId: string | undefined;
-  isTeacher: boolean;
-}) {
-  const messages = useQuery(api.messages.list, { cardId });
-  const addMessage = useMutation(api.messages.add);
-  const updateMessage = useMutation(api.messages.update);
-  const removeMessage = useMutation(api.messages.remove);
-
-  const [text, setText] = useState("");
-  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<Id<"messages"> | null>(null);
-  const [editText, setEditText] = useState("");
-  const composerRef = useRef<HTMLTextAreaElement>(null);
-
-  const focusComposer = () => composerRef.current?.focus();
-
-  const startReply = (m: { _id: Id<"messages">; createdByName: string; text: string }) => {
-    setReplyTo({ _id: m._id, createdByName: m.createdByName, text: m.text });
-    setError(null);
-    focusComposer();
-  };
-
-  const send = async () => {
-    const trimmed = text.trim();
-    if (!trimmed || sending) return;
-    setSending(true);
-    setError(null);
-    try {
-      await addMessage(
-        replyTo ? { cardId, text: trimmed, replyToId: replyTo._id } : { cardId, text: trimmed },
-      );
-      setText("");
-      setReplyTo(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't send reply");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const saveEdit = async (id: Id<"messages">) => {
-    const trimmed = editText.trim();
-    if (!trimmed) return;
-    setError(null);
-    try {
-      await updateMessage({ messageId: id, text: trimmed });
-      setEditingId(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save edit");
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-        Replies{messages ? ` (${messages.length})` : ""}
-      </p>
-
-      {messages === undefined ? (
-        <div className="flex items-center justify-center py-4">
-          <Spinner size="sm" />
-        </div>
-      ) : messages.length === 0 ? (
-        <p className="rounded-xl bg-default/30 px-3 py-2 text-xs text-muted">
-          No replies yet — be the first to reply to {seedAuthorName}&rsquo;s seed message.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {messages.map((m) => {
-            const own = m.createdBy === myId;
-            const canChange = own || isTeacher;
-            const isEditing = editingId === m._id;
-            return (
-              <li
-                key={m._id}
-                className="flex gap-2 rounded-2xl border border-border bg-surface p-2.5"
-              >
-                <Avatar size="sm" className="h-6 w-6 shrink-0 text-[10px]">
-                  {m.createdByImage && <Avatar.Image src={m.createdByImage} alt="" />}
-                  <Avatar.Fallback>{initialsOf(m.createdByName)}</Avatar.Fallback>
-                </Avatar>
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-xs font-semibold">{m.createdByName}</span>
-                    <span className="shrink-0 text-[10px] text-muted">
-                      {formatTime(m._creationTime)}
-                    </span>
-                    <span className="ml-auto flex shrink-0 items-center gap-0.5">
-                      <Tooltip>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          isIconOnly
-                          aria-label={`Reply to ${m.createdByName}`}
-                          className="h-7 w-7 min-w-0"
-                          onPress={() => startReply(m)}
-                        >
-                          <ReplyIcon className="h-4 w-4" />
-                        </Button>
-                        <Tooltip.Content>Reply to this message</Tooltip.Content>
-                      </Tooltip>
-                      {canChange && !isEditing && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label="Edit reply"
-                            className="h-7 min-w-0 px-1.5 text-[11px]"
-                            onPress={() => {
-                              setEditingId(m._id);
-                              setEditText(m.text);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label="Delete reply"
-                            className="h-7 min-w-0 px-1.5 text-[11px] text-danger"
-                            onPress={() => void removeMessage({ messageId: m._id })}
-                          >
-                            Delete
-                          </Button>
-                        </>
-                      )}
-                    </span>
-                  </div>
-
-                  {m.replyTo && (
-                    <QuoteBlock
-                      name={m.replyTo.createdByName}
-                      text={m.replyTo.text}
-                      deleted={"deleted" in m.replyTo}
-                    />
-                  )}
-
-                  {isEditing ? (
-                    <div className="flex flex-col gap-1.5">
-                      <TextArea
-                        autoFocus
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        rows={2}
-                      />
-                      <div className="flex gap-1.5">
-                        <Button size="sm" onPress={() => void saveEdit(m._id)}>
-                          Save
-                        </Button>
-                        <Button size="sm" variant="ghost" onPress={() => setEditingId(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap text-sm text-foreground/90">{m.text}</p>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-default/20 p-2.5">
-        {replyTo && (
-          <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <QuoteBlock name={replyTo.createdByName} text={replyTo.text} />
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              aria-label="Cancel reply"
-              className="h-6 w-6 min-w-0 shrink-0"
-              onPress={() => setReplyTo(null)}
-            >
-              ✕
-            </Button>
-          </div>
-        )}
-        {error && <p className="text-xs text-danger">{error}</p>}
-        <TextArea
-          ref={composerRef}
-          fullWidth
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-          placeholder={
-            replyTo ? `Reply to ${replyTo.createdByName}…` : `Reply to ${seedAuthorName}'s card…`
-          }
-          rows={2}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onPress={() => void send()} isDisabled={!text.trim() || sending}>
-            <ReplyIcon className="h-3.5 w-3.5" />
-            {sending ? "Sending…" : replyTo ? `Reply to ${replyTo.createdByName}` : "Reply"}
-          </Button>
-        </div>
-      </div>
-    </div>
   );
 }
 

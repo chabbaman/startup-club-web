@@ -4,10 +4,14 @@ import { useId, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import type { FunctionReturnType } from "convex/server";
+import { AnimatePresence, motion } from "motion/react";
 import { Button, Card, Input, Label, TextArea, TextField } from "@heroui/react";
 import { api } from "@/convex/_generated/api";
 
 type Poll = FunctionReturnType<typeof api.polls.list>[number];
+
+const spring = { type: "spring", stiffness: 500, damping: 38, mass: 0.8 } as const;
+const SCROLL_HINT_AFTER = 6;
 
 function errorMessage(error: unknown) {
   return error instanceof ConvexError && typeof error.data === "string"
@@ -45,7 +49,7 @@ export function PollComposer() {
       <Card.Header>
         <Card.Title>Create a poll</Card.Title>
         <Card.Description>
-          Publish a question for everyone on the board. Results appear only after voting, including for teachers.
+          Publish a question with as many choices as you need. Results appear only after voting, including for teachers.
         </Card.Description>
       </Card.Header>
       <Card.Content>
@@ -108,15 +112,41 @@ export function LivePolls({ isTeacher }: { isTeacher: boolean }) {
   const polls = useQuery(api.polls.list);
   const headingId = useId();
   const open = polls?.filter((poll) => !poll.closed) ?? [];
-  if (open.length === 0) return null;
+  if (polls !== undefined && open.length === 0) return null;
 
   return (
     <section
       aria-labelledby={headingId}
-      className="fixed bottom-4 right-4 z-30 flex max-h-[calc(100dvh-7rem)] w-[calc(100%-2rem)] flex-col gap-3 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-surface/95 p-3 shadow-xl backdrop-blur sm:bottom-6 sm:right-6 sm:w-[26rem]"
+      className="fixed bottom-4 right-4 z-30 flex max-h-[calc(100dvh-7rem)] w-[calc(100%-2rem)] flex-col gap-2 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-surface/95 p-3 shadow-xl backdrop-blur sm:bottom-6 sm:right-6 sm:w-[26rem]"
     >
-      <h2 id={headingId} className="sr-only">Active club polls</h2>
-      {open.map((poll) => <PollCard key={poll._id} poll={poll} isTeacher={isTeacher} />)}
+      <div className="flex items-center justify-between px-1">
+        <h2 id={headingId} className="text-xs font-bold uppercase tracking-widest text-muted">
+          Live polls
+        </h2>
+        {polls !== undefined && (
+          <span className="rounded-full bg-default px-2 py-0.5 text-[11px] font-bold text-muted tabular-nums" aria-live="polite">
+            {open.length} open
+          </span>
+        )}
+      </div>
+      {polls === undefined ? (
+        <p className="px-1 py-2 text-xs text-muted" role="status">Loading polls…</p>
+      ) : (
+        <AnimatePresence initial={false} mode="popLayout">
+          {open.map((poll) => (
+            <motion.div
+              key={poll._id}
+              layout
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+              transition={spring}
+            >
+              <PollCard poll={poll} isTeacher={isTeacher} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
     </section>
   );
 }
@@ -189,6 +219,9 @@ function PollCard({ poll, isTeacher }: { poll: Poll; isTeacher: boolean }) {
                 );
               })}
             </ol>
+            {poll.options.length > SCROLL_HINT_AFTER && (
+              <p className="text-[11px] text-muted">Scroll for all {poll.options.length} choices ↓</p>
+            )}
             <p role="status" className="text-xs text-muted tabular-nums">
               {poll.results.total} {poll.results.total === 1 ? "vote" : "votes"} · {poll.closed ? "Voting closed" : "You voted"}
             </p>
@@ -210,6 +243,9 @@ function PollCard({ poll, isTeacher }: { poll: Poll; isTeacher: boolean }) {
                 </label>
               ))}
             </fieldset>
+            {poll.options.length > SCROLL_HINT_AFTER && (
+              <p className="text-[11px] text-muted">Scroll for all {poll.options.length} choices ↓</p>
+            )}
             {!poll.closed && <Button type="submit" variant="outline" fullWidth isDisabled={pending || selected === null}>{pending ? "Submitting…" : `Vote${selected !== null ? ` for choice ${selected + 1}` : ""}`}</Button>}
           </form>
         )}

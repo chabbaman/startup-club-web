@@ -41,7 +41,13 @@ export const get = query({
           ),
         })),
     );
-    return { columns, cards: withFiles, badges };
+    const allMessages = await ctx.db.query("messages").collect();
+    const messageCounts: Record<string, number> = {};
+    for (const m of allMessages) {
+      const key = m.cardId as string;
+      messageCounts[key] = (messageCounts[key] ?? 0) + 1;
+    }
+    return { columns, cards: withFiles, badges, messageCounts };
   },
 });
 
@@ -109,6 +115,11 @@ export const deleteColumn = mutation({
     const identity = await requireColumnDeleter(ctx, cards);
     for (const card of cards) {
       for (const a of card.attachments ?? []) await ctx.storage.delete(a.storageId);
+      const thread = await ctx.db
+        .query("messages")
+        .withIndex("by_card", (q) => q.eq("cardId", card._id))
+        .collect();
+      for (const m of thread) await ctx.db.delete(m._id);
       await ctx.db.delete(card._id);
     }
     await ctx.db.delete(columnId);
@@ -235,6 +246,11 @@ export const deleteCard = mutation({
     const identity = await requireCardEditor(ctx, card);
     const column = await ctx.db.get(card.columnId);
     for (const a of card.attachments ?? []) await ctx.storage.delete(a.storageId);
+    const thread = await ctx.db
+      .query("messages")
+      .withIndex("by_card", (q) => q.eq("cardId", cardId))
+      .collect();
+    for (const m of thread) await ctx.db.delete(m._id);
     await ctx.db.delete(cardId);
     await logEvent(ctx, identity, {
       kind: "card_deleted",

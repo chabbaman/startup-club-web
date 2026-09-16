@@ -64,7 +64,7 @@ describe("polls", () => {
       { ...draft, question: " " },
       { ...draft, question: "q".repeat(281) },
       { ...draft, options: ["one"] },
-      { ...draft, options: ["1", "2", "3", "4", "5"] },
+      { ...draft, options: Array.from({ length: 11 }, (_, i) => `Option ${i + 1}`) },
       { ...draft, options: [" ", "two"] },
       { ...draft, options: ["Same", " same "] },
       { ...draft, options: ["x".repeat(81), "two"] },
@@ -72,6 +72,18 @@ describe("polls", () => {
     expect(await teacher.query(api.polls.list)).toEqual([]);
     await teacher.mutation(api.polls.create, { question: " Question? ", options: [" one ", " two ", "three", "four"] });
     expect((await teacher.query(api.polls.list))[0]).toMatchObject({ question: "Question?", options: ["one", "two", "three", "four"] });
+  });
+
+  test("supports up to 10 choices and tallies votes across all of them", async () => {
+    const { teacher, member } = setup();
+    const options = Array.from({ length: 10 }, (_, i) => `Option ${i + 1}`);
+    const pollId = await teacher.mutation(api.polls.create, { question: "Pick one?", options });
+    expect((await teacher.query(api.polls.list))[0]).toMatchObject({ options });
+    await member.mutation(api.polls.vote, { pollId, optionIndex: 9 });
+    expect((await member.query(api.polls.list))[0].results).toEqual({
+      counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      total: 1,
+    });
   });
 
   test("rejects invalid choices without consuming the member's vote", async () => {

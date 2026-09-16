@@ -52,6 +52,19 @@ export default defineSchema({
     ),
   }).index("by_column_order", ["columnId", "order"]),
 
+  // Threaded discussion inside a card. The card's title + description is the
+  // "seed" message; every row here is a reply in that thread. replyToId points
+  // at the message being replied to (seed itself can't be a target because it
+  // lives on the card, so a null replyToId means "reply to the card").
+  messages: defineTable({
+    cardId: v.id("cards"),
+    text: v.string(),
+    replyToId: v.optional(v.id("messages")),
+    createdBy: v.string(),
+    createdByName: v.string(),
+    createdByImage: v.optional(v.string()),
+  }).index("by_card", ["cardId"]),
+
   // Everyone who has opened the dashboard at least once.
   users: defineTable({
     clerkId: v.string(),

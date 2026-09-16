@@ -2,7 +2,7 @@ Startup Club is a [Next.js](https://nextjs.org) app for managing club activities
 
 ## Live polls
 
-In Teacher view, use **Create a poll** to publish a question with 2–4 choices.
+In Teacher view, use **Create a poll** to publish a question with 2–10 choices.
 Open polls appear in a floating card in the bottom-right corner of both dashboard
 views for all signed-in club members, without taking up space above the board.
 Members select a choice and press **Vote** once; votes cannot be changed.

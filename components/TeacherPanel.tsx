@@ -16,6 +16,7 @@ export function TeacherPanel() {
 
   const [name, setName] = useState("");
   const [color, setColor] = useState<AccentColor>("violet");
+  const [profileUserId, setProfileUserId] = useState<Doc<"users">["_id"] | null>(null);
 
   if (!data) {
     return (
@@ -24,6 +25,21 @@ export function TeacherPanel() {
       </div>
     );
   }
+
+  const profileUser = profileUserId
+    ? (data.users.find((user) => user._id === profileUserId) ?? null)
+    : null;
+  const profileRoles = profileUser
+    ? data.roles.filter((role) => profileUser.roleIds.includes(role._id))
+    : [];
+  const profileInitials = profileUser
+    ? profileUser.name
+        .split(" ")
+        .map((s) => s[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "";
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6">
@@ -91,16 +107,22 @@ export function TeacherPanel() {
                 .toUpperCase();
               return (
                 <li key={user._id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setProfileUserId(user._id)}
+                    title={`View ${user.name}'s profile`}
+                    aria-haspopup="dialog"
+                    className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1 text-left transition hover:bg-default/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
                     <Avatar>
                       {user.image && <Avatar.Image src={user.image} alt="" />}
                       <Avatar.Fallback>{initials}</Avatar.Fallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
+                      <p className="truncate text-sm font-medium text-foreground underline-offset-2 group-hover:underline">{user.name}</p>
                       <p className="truncate text-xs text-muted">{user.email}</p>
                     </div>
-                  </div>
+                  </button>
                   <div className="flex flex-wrap gap-1.5">
                     {data.roles.map((role) => {
                       const on = user.roleIds.includes(role._id);
@@ -134,6 +156,46 @@ export function TeacherPanel() {
       </Card>
 
       <HistoryPanel />
+
+      <Modal.Backdrop
+        isOpen={profileUser !== null}
+        onOpenChange={(open) => { if (!open) setProfileUserId(null); }}
+        variant="blur"
+      >
+        <Modal.Container size="sm">
+          <Modal.Dialog>
+            <Modal.CloseTrigger />
+            {profileUser && (
+              <>
+                <Modal.Header>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 shrink-0 text-base">
+                      {profileUser.image && <Avatar.Image src={profileUser.image} alt="" />}
+                      <Avatar.Fallback>{profileInitials}</Avatar.Fallback>
+                    </Avatar>
+                    <Modal.Heading className="min-w-0 break-words">{profileUser.name}</Modal.Heading>
+                  </div>
+                </Modal.Header>
+                <Modal.Body className="flex flex-col gap-3">
+                  <p className="truncate text-sm text-muted">{profileUser.email}</p>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-sm font-medium text-foreground">Roles</span>
+                    {profileRoles.length === 0 ? (
+                      <span className="text-xs text-muted">No roles assigned.</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {profileRoles.map((role) => (
+                          <RoleBadge key={role._id} name={role.name} color={role.color} size="sm" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </Modal.Body>
+              </>
+            )}
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </main>
   );
 }

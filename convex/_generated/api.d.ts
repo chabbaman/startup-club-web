@@ -11,6 +11,7 @@
 import type * as access from "../access.js";
 import type * as board from "../board.js";
 import type * as history from "../history.js";
+import type * as messages from "../messages.js";
 import type * as polls from "../polls.js";
 import type * as roles from "../roles.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   access: typeof access;
   board: typeof board;
   history: typeof history;
+  messages: typeof messages;
   polls: typeof polls;
   roles: typeof roles;
 }>;

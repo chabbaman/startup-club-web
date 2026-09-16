@@ -39,8 +39,8 @@ export const create = mutation({
     if (!question || question.length > 280) {
       throw new ConvexError("Use a question between 1 and 280 characters.");
     }
-    if (options.length < 2 || options.length > 4 || options.some((option) => !option || option.length > 80)) {
-      throw new ConvexError("Add 2–4 choices, each between 1 and 80 characters.");
+    if (options.length < 2 || options.length > 10 || options.some((option) => !option || option.length > 80)) {
+      throw new ConvexError("Add 2–10 choices, each between 1 and 80 characters.");
     }
     if (new Set(options.map((option) => option.toLowerCase())).size !== options.length) {
       throw new ConvexError("Each choice must be different.");

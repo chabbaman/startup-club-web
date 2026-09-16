@@ -9,8 +9,6 @@ import { api } from "@/convex/_generated/api";
 
 type Poll = FunctionReturnType<typeof api.polls.list>[number];
 
-const MAX_OPTIONS = 10;
-
 function errorMessage(error: unknown) {
   return error instanceof ConvexError && typeof error.data === "string"
     ? error.data : "Something went wrong. Please try again.";
@@ -60,7 +58,7 @@ export function PollComposer() {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Choices</span>
             <span className="text-xs text-muted tabular-nums" aria-live="polite">
-              {options.length} / {MAX_OPTIONS}
+              {options.length} {options.length === 1 ? "choice" : "choices"} · no limit
             </span>
           </div>
           <ol className="flex max-h-80 flex-col gap-2 overflow-y-auto overscroll-contain rounded-xl border border-border bg-default/40 p-2">
@@ -71,7 +69,7 @@ export function PollComposer() {
               >
                 <span
                   aria-hidden="true"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-default text-xs font-bold text-muted tabular-nums"
+                  className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-default px-1 text-xs font-bold text-muted tabular-nums"
                 >
                   {index + 1}
                 </span>
@@ -93,13 +91,8 @@ export function PollComposer() {
           {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           {published && <p role="status" className="text-sm text-success">Poll published. Everyone on the board can vote now.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <Button type="button" variant="outline" isDisabled={pending || options.length >= MAX_OPTIONS}
-                onPress={() => setOptions([...options, ""])}>+ Add choice</Button>
-              {options.length >= MAX_OPTIONS && (
-                <span className="text-xs text-muted">Maximum {MAX_OPTIONS} choices.</span>
-              )}
-            </div>
+            <Button type="button" variant="outline" isDisabled={pending}
+              onPress={() => setOptions([...options, ""])}>+ Add choice</Button>
             <Button type="submit" isDisabled={pending || !question.trim() || options.some((option) => !option.trim())}>
               {pending ? "Publishing…" : "Publish poll"}
             </Button>
@@ -182,7 +175,7 @@ function PollCard({ poll, isTeacher }: { poll: Poll; isTeacher: boolean }) {
                     <div className="relative flex items-center gap-2 px-3 py-2 text-sm">
                       <span
                         aria-hidden="true"
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold tabular-nums ${mine ? "bg-accent text-white" : "bg-default text-muted"}`}
+                        className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums ${mine ? "bg-accent text-white" : "bg-default text-muted"}`}
                       >
                         {index + 1}
                       </span>
@@ -209,7 +202,7 @@ function PollCard({ poll, isTeacher }: { poll: Poll; isTeacher: boolean }) {
                     onChange={() => setSelected(index)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
                   <span
                     aria-hidden="true"
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold tabular-nums transition-colors ${selected === index ? "bg-accent text-white" : "bg-default text-muted group-hover:bg-accent/20 group-hover:text-foreground"}`}
+                    className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums transition-colors ${selected === index ? "bg-accent text-white" : "bg-default text-muted group-hover:bg-accent/20 group-hover:text-foreground"}`}
                   >
                     {index + 1}
                   </span>

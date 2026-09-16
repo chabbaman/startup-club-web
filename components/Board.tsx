@@ -406,6 +406,23 @@ function ReplyIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+function PencilIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  );
+}
+
 function initialsOf(name: string) {
   return name
     .split(" ")
@@ -481,11 +498,30 @@ function KanbanCard({
         onDragEnd={onDragEnd}
         onClick={openEditor}
         title="Open card thread"
-        className={`gap-2 rounded-2xl p-3 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md ${
+        className={`group relative gap-2 rounded-2xl p-3 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md ${
           canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
         } ${isDragging ? "scale-[0.97] opacity-40" : ""}`}
       >
-        <p className="text-sm font-medium text-foreground">{card.title}</p>
+        {canEdit && (
+          <motion.button
+            type="button"
+            aria-label={`Edit card "${card.title}"`}
+            title="Edit card"
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditor();
+            }}
+            initial={{ scale: 0.7, rotate: -30 }}
+            animate={{ scale: 1, rotate: 0 }}
+            whileHover={{ scale: 1.15, rotate: -12 }}
+            whileTap={{ scale: 0.9, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 22 }}
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface/90 text-muted shadow-sm backdrop-blur transition-colors duration-200 hover:border-accent hover:bg-accent hover:text-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
+          >
+            <PencilIcon className="h-4 w-4" />
+          </motion.button>
+        )}
+        <p className={`text-sm font-medium text-foreground ${canEdit ? "pr-10" : ""}`}>{card.title}</p>
         {card.description && (
           <p className="line-clamp-3 whitespace-pre-wrap text-xs text-muted">{card.description}</p>
         )}

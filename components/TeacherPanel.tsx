@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Avatar, Button, Card, Chip, Input, Label, Modal, Spinner, TextField } from "@heroui/react";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Input,
+  Label,
+  ListBox,
+  Modal,
+  Select,
+  Spinner,
+  TextField,
+} from "@heroui/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { COLORS, ColorPicker, RoleBadge, type AccentColor } from "./colors";
@@ -17,6 +29,7 @@ export function TeacherPanel() {
   const [name, setName] = useState("");
   const [color, setColor] = useState<AccentColor>("violet");
   const [profileUserId, setProfileUserId] = useState<Doc<"users">["_id"] | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   if (!data) {
     return (
@@ -40,6 +53,29 @@ export function TeacherPanel() {
         .slice(0, 2)
         .toUpperCase()
     : "";
+
+  const roleExists =
+    roleFilter === "all" ||
+    roleFilter === "none" ||
+    data.roles.some((role) => role._id === roleFilter);
+  const effectiveFilter = roleExists ? roleFilter : "all";
+  const activeRole = data.roles.find((role) => role._id === effectiveFilter) ?? null;
+
+  const memberCountByRole = new Map<string, number>();
+  for (const user of data.users) {
+    for (const roleId of user.roleIds) {
+      memberCountByRole.set(roleId, (memberCountByRole.get(roleId) ?? 0) + 1);
+    }
+  }
+  const membersWithoutRole = data.users.filter((user) => user.roleIds.length === 0).length;
+
+  const visibleUsers =
+    effectiveFilter === "all"
+      ? data.users
+      : effectiveFilter === "none"
+        ? data.users.filter((user) => user.roleIds.length === 0)
+        : data.users.filter((user) => user.roleIds.includes(effectiveFilter as Doc<"roles">["_id"]));
+  const isFiltered = effectiveFilter !== "all";
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6">
@@ -93,12 +129,87 @@ export function TeacherPanel() {
             Everyone who has signed in. Click a role to toggle it for that member.
           </Card.Description>
         </Card.Header>
-        <Card.Content>
+        <Card.Content className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <Select
+              className="w-full sm:w-64"
+              placeholder="Select a role"
+              value={effectiveFilter}
+              onChange={(value) => setRoleFilter(value == null ? "all" : String(value))}
+              aria-label="Filter members by role"
+            >
+              <Label>Filter by role</Label>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <ListBox.Item id="all" textValue="All members">
+                    <span className="flex w-full items-center gap-2">
+                      <span className="flex-1 truncate">All members</span>
+                      <span className="text-xs text-muted">{data.users.length}</span>
+                    </span>
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  <ListBox.Item id="none" textValue="No roles">
+                    <span className="flex w-full items-center gap-2">
+                      <span className="flex-1 truncate">No roles</span>
+                      <span className="text-xs text-muted">{membersWithoutRole}</span>
+                    </span>
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  {data.roles.map((role) => (
+                    <ListBox.Item key={role._id} id={role._id} textValue={role.name}>
+                      <span className="flex w-full items-center gap-2">
+                        <span
+                          aria-hidden
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${COLORS[role.color].dot}`}
+                        />
+                        <span className="flex-1 truncate">{role.name}</span>
+                        <span className="text-xs text-muted">
+                          {memberCountByRole.get(role._id) ?? 0}
+                        </span>
+                      </span>
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <p aria-live="polite">
+                Showing {visibleUsers.length} of {data.users.length}{" "}
+                {data.users.length === 1 ? "member" : "members"}
+                {activeRole ? ` with “${activeRole.name}”` : effectiveFilter === "none" ? " with no roles" : ""}
+              </p>
+              {isFiltered && (
+                <Button size="sm" variant="ghost" onPress={() => setRoleFilter("all")}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
           <ul className="divide-y divide-separator">
             {data.users.length === 0 && (
               <li className="py-3 text-xs text-muted">Nobody has signed in yet.</li>
             )}
-            {data.users.map((user) => {
+            {data.users.length > 0 && visibleUsers.length === 0 && (
+              <li className="flex flex-col items-start gap-2 py-6">
+                <p className="text-sm text-muted">
+                  {effectiveFilter === "none"
+                    ? "Everyone has at least one role."
+                    : activeRole
+                      ? `No members have the “${activeRole.name}” role yet.`
+                      : "No members match this filter."}
+                </p>
+                <Button size="sm" variant="outline" onPress={() => setRoleFilter("all")}>
+                  Show everyone
+                </Button>
+              </li>
+            )}
+            {visibleUsers.map((user) => {
               const initials = user.name
                 .split(" ")
                 .map((s) => s[0])

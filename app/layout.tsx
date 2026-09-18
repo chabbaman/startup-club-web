@@ -33,6 +33,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               colorPrimary: "#e11d48",
               borderRadius: "0.75rem",
             },
+            // Hide the Security page (and its Active Devices list, which shows
+            // members their IP addresses) from the user menu's profile modal.
+            elements: {
+              navbarButton__security: { display: "none" },
+              profilePage__security: { display: "none" },
+              profileSection__activeDevices: { display: "none" },
+            },
           }}
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>

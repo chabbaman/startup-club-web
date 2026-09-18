@@ -199,7 +199,7 @@ function PollCard({ poll, isTeacher }: { poll: Poll; isTeacher: boolean }) {
                 const percent = poll.results!.total ? Math.round(count / poll.results!.total * 100) : 0;
                 const mine = poll.myVote === index;
                 return (
-                  <li key={index} className={`relative overflow-hidden rounded-xl border ${mine ? "border-accent" : "border-border bg-surface"}`}>
+                  <li key={index} className={`relative shrink-0 overflow-hidden rounded-xl border ${mine ? "border-accent" : "border-border bg-surface"}`}>
                     <div aria-hidden="true" className={`absolute inset-y-0 left-0 transition-[width] duration-300 motion-reduce:transition-none ${mine ? "bg-accent/20" : "bg-default/70"}`}
                       style={{ width: `${percent}%` }} />
                     <div className="relative flex items-center gap-2 px-3 py-2 text-sm">
@@ -230,7 +230,7 @@ function PollCard({ poll, isTeacher }: { poll: Poll; isTeacher: boolean }) {
           <form onSubmit={(event) => { event.preventDefault(); void submit("vote"); }} className="flex flex-col gap-3">
             <fieldset aria-labelledby={id} disabled={pending || poll.closed} className="flex max-h-64 flex-col gap-1.5 overflow-y-auto overscroll-contain pr-0.5">
               {poll.options.map((option, index) => (
-                <label key={index} className={`group flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 text-sm transition-colors ${selected === index ? "border-accent bg-accent/5 ring-1 ring-accent" : "border-border bg-surface hover:border-accent/60 hover:bg-accent/5"} ${poll.closed ? "pointer-events-none text-muted" : ""}`}>
+                <label key={index} className={`group flex shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 text-sm transition-colors ${selected === index ? "border-accent bg-accent/5 ring-1 ring-accent" : "border-border bg-surface hover:border-accent/60 hover:bg-accent/5"} ${poll.closed ? "pointer-events-none text-muted" : ""}`}>
                   <input type="radio" name={`poll-${poll._id}`} value={index} checked={selected === index}
                     onChange={() => setSelected(index)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
                   <span

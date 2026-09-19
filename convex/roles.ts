@@ -2,7 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { columnColor } from "./schema";
 import { isTeacherEmail, requireMember, requireTeacher } from "./access";
-import { FORM_ASSIGNMENTS, applyFormRoles } from "./roleImport";
+import { applyFormRoles } from "./roleImport";
 
 /** Upsert the signed-in user so teachers can assign them roles. Called on dashboard load. */
 export const ensureUser = mutation({
@@ -100,28 +100,5 @@ export const setUserRole = mutation({
     } else if (!assigned && has) {
       await ctx.db.patch(userId, { roleIds: user.roleIds.filter((r) => r !== roleId) });
     }
-  },
-});
-
-/**
- * Applies the signup-form role assignments to every member who has signed in,
- * creating the form roles as needed. Members not yet signed in get theirs
- * automatically on first load. Teacher only; safe to run repeatedly.
- */
-export const importFormRoles = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireTeacher(ctx);
-    const users = await ctx.db.query("users").collect();
-    const seen = new Set<string>();
-    let updated = 0;
-    for (const user of users) {
-      const email = user.email.toLowerCase();
-      if (!(email in FORM_ASSIGNMENTS)) continue;
-      seen.add(email);
-      if (await applyFormRoles(ctx, user)) updated += 1;
-    }
-    const pending = Object.keys(FORM_ASSIGNMENTS).filter((email) => !seen.has(email));
-    return { matched: seen.size, updated, pending };
   },
 });

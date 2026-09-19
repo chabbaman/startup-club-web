@@ -25,6 +25,11 @@ export function TeacherPanel() {
   const data = useQuery(api.roles.adminView);
   const createRole = useMutation(api.roles.createRole);
   const setUserRole = useMutation(api.roles.setUserRole);
+  const importFormRoles = useMutation(api.roles.importFormRoles);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<
+    { matched: number; updated: number; pending: string[] } | { error: string } | null
+  >(null);
 
   const [name, setName] = useState("");
   const [color, setColor] = useState<AccentColor>("violet");
@@ -117,6 +122,46 @@ export function TeacherPanel() {
             {data.roles.length === 0 && <span className="text-xs text-muted">No roles yet.</span>}
             {data.roles.map((role) => (
               <RoleChip key={role._id} role={role} />
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground">Signup form roles</span>
+                <span className="text-xs text-muted">
+                  Creates the form roles and assigns them to everyone who filled out the form.
+                  Members who haven&apos;t signed in yet get theirs automatically on first load.
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                isDisabled={importing}
+                onPress={async () => {
+                  setImporting(true);
+                  setImportResult(null);
+                  try {
+                    setImportResult(await importFormRoles({}));
+                  } catch (error) {
+                    setImportResult({ error: error instanceof Error ? error.message : "Import failed" });
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+              >
+                {importing ? "Importing…" : "Import form roles"}
+              </Button>
+            </div>
+            {importResult && ("error" in importResult ? (
+              <p role="alert" className="text-sm text-danger">{importResult.error}</p>
+            ) : (
+              <p role="status" className="text-xs text-muted">
+                Matched {importResult.matched} signed-in {importResult.matched === 1 ? "member" : "members"},
+                updated {importResult.updated}.
+                {importResult.pending.length > 0 && (
+                  <> Waiting on first sign-in: {importResult.pending.join(", ")}.</>
+                )}
+              </p>
             ))}
           </div>
         </Card.Content>

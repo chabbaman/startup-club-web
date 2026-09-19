@@ -262,13 +262,13 @@ export function TeacherPanel() {
                 .slice(0, 2)
                 .toUpperCase();
               return (
-                <li key={user._id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                <li key={user._id} className="flex flex-col gap-2 py-3">
                   <button
                     type="button"
                     onClick={() => setProfileUserId(user._id)}
                     title={`View ${user.name}'s profile`}
                     aria-haspopup="dialog"
-                    className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1 text-left transition hover:bg-default/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="-mx-2 flex min-w-0 max-w-full items-center gap-3 self-start rounded-xl px-2 py-1 text-left transition hover:bg-default/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     <Avatar>
                       {user.image && <Avatar.Image src={user.image} alt="" />}
@@ -279,7 +279,7 @@ export function TeacherPanel() {
                       <p className="truncate text-xs text-muted">{user.email}</p>
                     </div>
                   </button>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 sm:pl-[3.25rem]">
                     {data.roles.map((role) => {
                       const on = user.roleIds.includes(role._id);
                       return (
